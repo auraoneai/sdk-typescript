@@ -1,11 +1,18 @@
 {
   "name": "@auraone/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Official TypeScript SDK for the AuraOne hosted API.",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "files": [
     "dist"
   ],
