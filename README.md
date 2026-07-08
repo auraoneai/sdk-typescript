@@ -1,83 +1,193 @@
 # @auraone/sdk
 
-Official TypeScript SDK for the AuraOne hosted API.
+Build Node.js and TypeScript integrations for the AuraOne hosted API without hand-writing REST, auth, polling, or service wrappers.
 
-This is the **hosted** SDK — it speaks to the AuraOne platform at `api.auraone.ai`. For local, no-account-required evaluation tooling (rubric validation, scoring, judge calibration, IAA, drift, leakage audits), use [`auraone-evalkit`](https://pypi.org/project/auraone-evalkit/) from the [`auraoneai/open`](https://github.com/auraoneai/open) repository instead.
+[![npm version](https://img.shields.io/npm/v/%40auraone%2Fsdk.svg)](https://www.npmjs.com/package/@auraone/sdk)
+[![npm downloads](https://img.shields.io/npm/dm/%40auraone%2Fsdk.svg)](https://www.npmjs.com/package/@auraone/sdk)
+[![license](https://img.shields.io/npm/l/%40auraone%2Fsdk.svg)](./LICENSE)
+[![CI](https://github.com/auraoneai/sdk-typescript/actions/workflows/ci.yml/badge.svg)](https://github.com/auraoneai/sdk-typescript/actions/workflows/ci.yml)
+[![TypeScript types](https://img.shields.io/npm/types/%40auraone%2Fsdk.svg)](https://www.npmjs.com/package/@auraone/sdk)
+
+- Start evaluation runs, poll for completion, and fetch hosted AuraOne results from typed TypeScript methods.
+- Use API key, JWT token, or environment-based authentication without building request headers yourself.
+- Work with REST services, the GraphQL endpoint, and LangChain or LlamaIndex adapter shims from one package.
+- Ship both ESM and CommonJS consumers with bundled `.d.ts` declarations.
 
 ## Install
 
 ```bash
 npm install @auraone/sdk
-# or
 pnpm add @auraone/sdk
-# or
 yarn add @auraone/sdk
+bun add @auraone/sdk
 ```
 
-## Quick start
+## Quickstart
 
 ```typescript
 import { AuraOneClient } from "@auraone/sdk";
 
-const client = AuraOneClient.withApiKey(process.env.AURAONE_API_KEY!);
+const apiKey = process.env.AURAONE_API_KEY;
+if (!apiKey) {
+  throw new Error("Set AURAONE_API_KEY");
+}
+
+const client = AuraOneClient.withApiKey(apiKey);
+
+const templates = await client.evaluations.listTemplates({
+  domain: "web",
+  per_page: 5,
+});
+
+console.log(templates.map((template) => template.id));
+```
+
+## Run An Evaluation
+
+```typescript
+import { AuraOneClient } from "@auraone/sdk";
+
+const apiKey = process.env.AURAONE_API_KEY;
+if (!apiKey) {
+  throw new Error("Set AURAONE_API_KEY");
+}
+
+const client = AuraOneClient.withApiKey(apiKey);
 
 const run = await client.evaluations.create({
   template_id: "rubric.web.qa",
-  agent_bundle_url: "s3://bundle.zip",
+  agent_bundle_url: "s3://your-bucket/agent-bundle.zip",
   wait: false,
 });
 
 console.log(run.id, run.status);
 ```
 
-## What's in the SDK
+## What You Can Build
 
-- Domain services across evaluations, labs, training, analytics, collaboration, governance, billing, integrations, and more.
-- Authentication via API key, scoped tokens, or OAuth (`AuthProvider`).
-- Plugin shims for LangChain and LlamaIndex.
-- GraphQL client alongside REST.
-- Typed responses; the SDK ships its own `.d.ts` files.
+- Hosted evaluation dashboards that create runs, poll status, and display scores or artifacts.
+- Agent and model QA pipelines that submit bundles to AuraOne templates from CI or backend jobs.
+- Internal operations tools for analytics, training export, billing, governance, labs, and integrations.
+- Framework integrations that bridge AuraOne workflows into LangChain or LlamaIndex projects.
+- Typed GraphQL calls for API operations that are easier to express as a query.
 
-## Two-SDK architecture
+## Why @auraone/sdk?
 
-| Package | What it is | When to use |
+- **Less request plumbing.** The SDK owns base URLs, headers, idempotency keys for evaluation creation, retries, and timeouts.
+- **Typed hosted API calls.** Service methods return TypeScript types for evaluations, templates, reward specs, analytics, training, and more.
+- **Auth in one place.** Use `withApiKey`, `withToken`, `fromEnvironment`, or `AuthProvider` instead of scattering credential handling through your app.
+- **REST and GraphQL together.** Use service classes for common workflows and `client.graphql.request<T>()` when a GraphQL query is the right shape.
+- **Framework adapter shims.** Import LangChain and LlamaIndex helpers from the package instead of maintaining local glue code.
+
+## Compared With Alternatives
+
+| Need | `@auraone/sdk` | Alternative |
 | --- | --- | --- |
-| `@auraone/sdk` (this package) | Hosted API client (npm) | You have an AuraOne account and want to call hosted services. |
-| `auraone-sdk` (PyPI) | Same API surface, Python edition | You prefer Python and want hosted services. |
-| `auraone-evalkit` (PyPI) | Local OSS evaluation tooling | You want rubric/score/agreement/drift utilities without an account. See [auraoneai/open](https://github.com/auraoneai/open). |
+| Call the AuraOne hosted API from TypeScript | Typed client methods, auth helpers, and generated bundles for npm consumers | Raw `fetch` or a generic HTTP client requires custom headers, paths, retries, and response typing |
+| Run local, no-account evaluation utilities | Use [`auraone-evalkit`](https://pypi.org/project/auraone-evalkit/) instead | `@auraone/sdk` is intentionally for hosted AuraOne API access |
+| Use AuraOne from Python | Use the Python SDK package instead | This package targets Node.js and TypeScript applications |
+| Mix REST services and GraphQL | Includes both service wrappers and a `GraphQLClient` | A plain GraphQL client does not cover hosted REST services or auth conventions |
 
-## Authentication
+## API Usage
+
+### Client Creation
 
 ```typescript
 import { AuraOneClient } from "@auraone/sdk";
 
-// API key (simplest)
-const client = AuraOneClient.withApiKey(process.env.AURAONE_API_KEY!);
+const apiKey = process.env.AURAONE_API_KEY;
+if (!apiKey) {
+  throw new Error("Set AURAONE_API_KEY");
+}
 
-// Custom AuthProvider for refresh tokens / OAuth / scoped credentials
-import { AuthProvider } from "@auraone/sdk";
-const authProvider = new AuthProvider({ /* ... */ });
-const client2 = new AuraOneClient({ authProvider });
+const token = process.env.AURAONE_TOKEN;
+if (!token) {
+  throw new Error("Set AURAONE_TOKEN");
+}
+
+const apiKeyClient = AuraOneClient.withApiKey(apiKey);
+const tokenClient = AuraOneClient.withToken(token);
+const envClient = AuraOneClient.fromEnvironment();
 ```
 
-## Documentation
+### Evaluations
+
+```typescript
+const templates = await envClient.evaluations.listTemplates({ domain: "web" });
+
+const run = await envClient.evaluations.create({
+  template_id: templates[0]?.id ?? "rubric.web.qa",
+  agent_bundle_url: "s3://your-bucket/agent-bundle.zip",
+  wait: true,
+  timeoutSeconds: 300,
+});
+
+console.log(run.status, run.score);
+```
+
+### GraphQL
+
+```typescript
+const ping = await envClient.graphql.request<{ __typename: string }>(`
+  query Ping {
+    __typename
+  }
+`);
+
+console.log(ping.__typename);
+```
+
+### Service Areas
+
+`AuraOneClient` exposes hosted API service groups for:
+
+- `auth`
+- `analytics`
+- `training`
+- `billing`
+- `collaboration`
+- `robotics`
+- `evaluations`
+- `graphql`
+- `labs`
+- `governance`
+- `integrations`
+
+The package also exports domain services for biology, chemistry, materials, environmental workflows, astronomy, climate, spatial 3D, finance, manufacturing, medical imaging, physics, and genomics.
+
+## Examples And Links
 
 - Hosted API reference: https://www.auraone.ai/developers
 - Tutorials: https://www.auraone.ai/resources/tutorials
 - Deployment guide: https://www.auraone.ai/resources/docs/deployment
+- Changelog: [CHANGELOG.md](./CHANGELOG.md)
+- Security policy: [SECURITY.md](./SECURITY.md)
+- Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+## Compatibility And Limitations
+
+- Requires Node.js 18 or newer.
+- Supports ESM `import` and CommonJS `require` through the package `exports` map.
+- Ships TypeScript declarations at `dist/index.d.ts`.
+- Targets the hosted AuraOne API at `https://api.auraone.ai` by default.
+- Requires an AuraOne account and API key or token for hosted API calls.
+- Browser builds are not a primary target because parts of the SDK use Node APIs.
+- Use [`auraone-evalkit`](https://pypi.org/project/auraone-evalkit/) from [`auraoneai/open`](https://github.com/auraoneai/open) for local, no-account evaluation tooling such as rubric validation, scoring, judge calibration, IAA, drift, and leakage audits.
 
 ## Development
 
 ```bash
 npm install
-npm run build
+npm run typecheck
+npm run lint
 npm test
+npm run build
 ```
 
-## Versioning
+## Contributing
 
-This SDK is at v0.1.0. We follow [semantic versioning](https://semver.org/). Breaking changes will only land in a major release after v1.0.0.
+Bug reports, documentation fixes, type refinements, and SDK convenience methods are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](./LICENSE).

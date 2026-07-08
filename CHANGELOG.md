@@ -2,6 +2,17 @@
 
 All notable changes to `@auraone/sdk` are documented here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-07-07
+
+### Changed
+
+- Reworked the README around installation, quickstart examples, hosted API use cases, compatibility, and trust links.
+- Updated npm metadata with a more searchable package description, focused keywords, explicit package files, and a Node.js 18+ engine declaration.
+
+### Fixed
+
+- Build tooling now resolves the TypeScript entrypoint before Rollup parses it and explicitly treats `node:crypto` as external.
+
 ## [0.1.1] - 2026-05-11
 
 ### Fixed

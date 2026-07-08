@@ -1,8 +1,8 @@
 {
   "name": "@auraone/sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
-  "description": "Official TypeScript SDK for the AuraOne hosted API.",
+  "description": "TypeScript and Node.js SDK for the AuraOne hosted API, with typed clients for evaluations, auth, GraphQL, analytics, training, and integrations.",
   "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
@@ -14,8 +14,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -33,20 +38,26 @@
   },
   "keywords": [
     "auraone",
-    "api",
     "sdk",
     "typescript",
-    "ai",
-    "evaluation",
-    "training",
+    "nodejs",
+    "hosted-api",
+    "api-client",
+    "ai-evaluation",
+    "agent-evaluation",
+    "model-evaluation",
+    "graphql-client",
+    "langchain",
+    "llamaindex",
     "analytics",
-    "collaboration"
+    "training",
+    "ai-platform"
   ],
   "author": "AuraOne",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/auraoneai/sdk-typescript.git"
+    "url": "git+https://github.com/auraoneai/sdk-typescript.git"
   },
   "bugs": {
     "url": "https://github.com/auraoneai/sdk-typescript/issues"

@@ -5,7 +5,7 @@ import path from "path";
 const config = [
   // ESM and CommonJS builds
   {
-    input: "src/index.ts",
+    input: path.resolve("src/index.ts"),
     output: [
       {
         file: "dist/index.cjs",
@@ -27,11 +27,11 @@ const config = [
         outputToFilesystem: true,
       }),
     ],
-    external: ["typescript", "fs/promises", "cross-fetch", "qs"],
+    external: ["typescript", "fs/promises", "node:crypto", "cross-fetch", "qs"],
   },
   // TypeScript declarations
   {
-    input: "src/index.ts",
+    input: path.resolve("src/index.ts"),
     output: {
       file: "dist/index.d.ts",
       format: "es",
