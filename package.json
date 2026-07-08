@@ -1,6 +1,6 @@
 {
   "name": "@auraone/sdk",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "description": "TypeScript and Node.js SDK for the AuraOne hosted API, with typed clients for evaluations, auth, GraphQL, analytics, training, and integrations.",
   "main": "dist/index.cjs",

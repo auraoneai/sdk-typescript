@@ -2,6 +2,12 @@
 
 All notable changes to `@auraone/sdk` are documented here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-07-08
+
+### Fixed
+
+- Published from the token-authenticated npm release workflow so the GitHub Actions release path is verified after the `0.1.4` security patch.
+
 ## [0.1.4] - 2026-07-07
 
 ### Security
