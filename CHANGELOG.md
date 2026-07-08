@@ -2,6 +2,12 @@
 
 All notable changes to `@auraone/sdk` are documented here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-07-07
+
+### Fixed
+
+- Runtime version surfaces now report the package version through the exported `VERSION`, `AuraOneClient.getConfig().version`, and HTTP User-Agent values.
+
 ## [0.1.2] - 2026-07-07
 
 ### Changed

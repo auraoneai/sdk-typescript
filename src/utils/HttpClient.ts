@@ -11,6 +11,7 @@ import {
   ValidationError,
   NotFoundError,
 } from "../types/api";
+import { SDK_VERSION } from "../version";
 import { traceHeaders } from "./trace";
 import { createSDKLogger, type SDKLogger } from "./logger";
 
@@ -53,8 +54,7 @@ export class FetchHttpClient implements HttpClient {
   }
 
   private getVersion(): string {
-    // In a real implementation, this would come from package.json
-    return "1.0.0";
+    return SDK_VERSION;
   }
 
   private exponentialBackoff = (attemptNumber: number): number => {

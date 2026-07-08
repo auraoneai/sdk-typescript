@@ -13,6 +13,7 @@ import { IntegrationsService } from "../services/IntegrationsService";
 import { ClientConfig, HttpClient, AuthenticationError, RequestConfig } from "../types/api";
 import { createSDKLogger } from "../utils/logger";
 import { GraphQLClient } from "../graphql/GraphQLClient";
+import { SDK_VERSION } from "../version";
 
 /**
  * Main AuraOne API client
@@ -301,8 +302,7 @@ export class AuraOneClient {
   }
 
   private getVersion(): string {
-    // This would come from package.json in a real implementation
-    return "1.0.0";
+    return SDK_VERSION;
   }
 }
 

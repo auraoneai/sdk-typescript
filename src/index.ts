@@ -50,10 +50,12 @@
  * await tracker.flush();
  * ```
  *
- * @version 1.0.0
+ * @version 0.1.3
  * @author AuraOne Team
  * @license MIT
  */
+
+import { SDK_VERSION } from "./version";
 
 // Main client export
 export { AuraOneClient as default } from "./client/AuraOneClient";
@@ -109,7 +111,7 @@ export {
 /**
  * SDK version
  */
-export const VERSION = "1.0.0";
+export const VERSION = SDK_VERSION;
 
 /**
  * Supported API version
