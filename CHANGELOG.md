@@ -2,6 +2,12 @@
 
 All notable changes to `@auraone/sdk` are documented here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-07-07
+
+### Security
+
+- Updated the direct `qs` dependency to `^6.15.3` so production installs no longer report GHSA-q8mj-m7cp-5q26 under `npm audit --omit=dev`.
+
 ## [0.1.3] - 2026-07-07
 
 ### Fixed

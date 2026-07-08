@@ -50,7 +50,7 @@
  * await tracker.flush();
  * ```
  *
- * @version 0.1.3
+ * @version 0.1.4
  * @author AuraOne Team
  * @license MIT
  */
