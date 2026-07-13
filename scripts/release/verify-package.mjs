@@ -53,11 +53,12 @@ function installWithRetries(spec, cwd, retries) {
   throw lastError;
 }
 
-const spec = argumentValue("--spec");
-if (!spec) {
+const inputSpec = argumentValue("--spec");
+if (!inputSpec) {
   console.error("Usage: verify-package.mjs --spec <tarball-or-package-spec>");
   process.exit(2);
 }
+const spec = inputSpec.endsWith(".tgz") ? resolve(root, inputSpec) : inputSpec;
 
 const expectedVersion = argumentValue("--expected-version");
 const registryRetries = Number(argumentValue("--registry-retries") ?? "1");
