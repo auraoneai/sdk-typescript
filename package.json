@@ -1,16 +1,25 @@
 {
   "name": "@auraone/sdk",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "type": "module",
-  "description": "TypeScript and Node.js SDK for the AuraOne hosted API, with typed clients for evaluations, auth, GraphQL, analytics, training, and integrations.",
+  "description": "TypeScript SDK for Node.js backends using the hosted AuraOne API, with typed evaluations, authentication, retries, polling, REST, and GraphQL.",
   "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.esm.js",
       "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "dist/index.d.ts"
+      ]
     }
   },
   "files": [
@@ -22,38 +31,46 @@
     "node": ">=18"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "rollup -c",
     "build:watch": "rollup -c -w",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "npm run test:unit && npm run test:release",
+    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:release": "node --test scripts/release/*.test.mjs",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "typecheck": "tsc --noEmit",
     "type-check": "tsc --noEmit",
-    "prepublishOnly": "npm run build",
+    "audit:production": "npm audit --omit=dev",
+    "package:test": "node scripts/release/test-package.mjs",
+    "release:prepare": "node scripts/release/prepare-release.mjs",
+    "release:validate": "node scripts/release/validate-release.mjs",
+    "release:preflight": "npm run release:validate && npm run audit:production && npm run typecheck && npm run lint && npm test && npm run build && npm run package:test",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run release:validate",
     "dev": "npm run build:watch"
   },
   "keywords": [
     "auraone",
-    "sdk",
     "typescript",
     "nodejs",
-    "hosted-api",
+    "sdk",
     "api-client",
+    "hosted-api",
     "ai-evaluation",
     "agent-evaluation",
-    "model-evaluation",
+    "evaluation-api",
     "graphql-client",
-    "langchain",
-    "llamaindex",
-    "analytics",
-    "training",
-    "ai-platform"
+    "rest-client"
   ],
-  "author": "AuraOne",
+  "author": {
+    "name": "AuraOne",
+    "url": "https://www.auraone.ai"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

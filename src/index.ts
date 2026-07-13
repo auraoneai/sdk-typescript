@@ -1,56 +1,33 @@
 /**
  * @fileoverview AuraOne SDK - Official TypeScript SDK for AuraOne API
  *
- * This SDK provides comprehensive access to the AuraOne platform's capabilities
- * including authentication, analytics, training, billing, and collaboration features.
+ * This SDK provides typed access to hosted AuraOne evaluations, authentication,
+ * analytics, training, governance, labs, GraphQL, and domain services.
  *
- * @example Basic usage with API key
+ * @example Create a hosted evaluation with environment-based authentication
  * ```typescript
- * import AuraOne from '@auraone/sdk';
+ * import { randomUUID } from "node:crypto";
+ * import { AuraOneClient, EvaluationStatus } from "@auraone/sdk";
  *
- * const client = AuraOne.withApiKey('your-api-key');
- *
- * // Track analytics event
- * await client.analytics.trackUser('button_clicked', {
- *   button: 'submit',
- *   page: 'dashboard'
+ * const client = AuraOneClient.fromEnvironment({
+ *   timeout: 30_000,
+ *   retries: 3,
  * });
  *
- * // Export training data
- * const trainingData = await client.training.exportDPO({
- *   orgId: 'your-org-id',
- *   minConfidence: 3
+ * const evaluation = await client.evaluations.create({
+ *   template_id: "rubric.web.qa",
+ *   agent_bundle_url: "s3://example-evaluation-inputs/web-agent-v3.zip",
+ *   idempotencyKey:
+ *     process.env.AURAONE_IDEMPOTENCY_KEY ?? randomUUID(),
+ *   wait: true,
+ *   timeoutSeconds: 300,
  * });
+ *
+ * if (evaluation.status !== EvaluationStatus.COMPLETED) {
+ *   throw new Error(`Evaluation ended with ${evaluation.status}`);
+ * }
  * ```
  *
- * @example Usage with environment variables
- * ```typescript
- * import AuraOne from '@auraone/sdk';
- *
- * // Reads from AURAONE_API_KEY or AURAONE_TOKEN environment variables
- * const client = AuraOne.fromEnvironment();
- *
- * // Test connection
- * const status = await client.testConnection();
- * console.log('Connected:', status.success);
- * ```
- *
- * @example Batch analytics tracking
- * ```typescript
- * import AuraOne from '@auraone/sdk';
- *
- * const client = AuraOne.withApiKey('your-api-key');
- * const tracker = client.createAnalyticsBatch();
- *
- * // Events are automatically batched and sent
- * tracker.track({ name: 'page_view', category: 'user', properties: { page: '/home' } });
- * tracker.track({ name: 'button_click', category: 'user', properties: { button: 'cta' } });
- *
- * // Manually flush if needed
- * await tracker.flush();
- * ```
- *
- * @version 0.1.5
  * @author AuraOne Team
  * @license MIT
  */
@@ -74,6 +51,7 @@ export * from "./services/RoboticsService";
 export { LabsService } from "./services/LabsService";
 export { GovernanceService } from "./services/GovernanceService";
 export { IntegrationsService } from "./services/IntegrationsService";
+export * from "./services/EvaluationsService";
 
 // Domain Lab service exports
 export { BiologyService } from "./services/BiologyService";

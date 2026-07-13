@@ -6,7 +6,22 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
+  workflow-lint:
+    name: release workflow contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 .github/workflows/*.yml
+
   test:
     name: test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
@@ -16,6 +31,8 @@ jobs:
         node-version: ["18.x", "20.x", "22.x"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
@@ -25,3 +42,4 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - run: npm run package:test

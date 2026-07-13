@@ -2,6 +2,24 @@
 
 All notable changes to `@auraone/sdk` are documented here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.2.0] - 2026-07-12
+
+### Added
+
+- Added automated release metadata validation and packed-package smoke tests for ESM, CommonJS, and TypeScript consumers.
+- Added a release preparation command that updates package, lockfile, source version, and dated changelog metadata together.
+- Added a token-free npm trusted-publishing workflow with provenance, registry verification, supported-Node clean installs, and matching GitHub Release assets.
+- Added a release operator runbook covering preflight, npm trusted-publisher configuration, verification, and rollback.
+
+### Changed
+
+- Rewrote the npm-facing README around the Node.js backend audience, hosted/local boundary, first typed evaluation workflow, package exports, server-side credential boundary, error behavior, source verification, limitations, and next action.
+- Replaced key-shaped documentation snippets with an environment-based, idempotent hosted evaluation example and separated declared TypeScript compatibility from the release-tested toolchain.
+- Focused npm discovery metadata on the hosted TypeScript evaluation client job, removed unexported framework keywords, and added canonical author, repository, documentation, and issue links.
+- Expanded release validation to enforce the README, package metadata, release-runbook, export-map, and publication-proof contracts.
+
 ## [0.1.5] - 2026-07-08
 
 ### Fixed
