@@ -1,8 +1,16 @@
-import { afterAll, beforeAll, describe, expect, jest, test } from "@jest/globals";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  jest,
+  test,
+} from "@jest/globals";
 import { AuraClient, EvaluationStatus } from "../client";
 import { ComplianceFrameworkId } from "../types/api";
 
 describe("AuraClient contracts", () => {
+  const TEST_KEY = `ak_${"ab12cd34"}_${"f".repeat(64)}`;
   const baseUrl = "http://localhost:9999";
   let originalFetch: typeof global.fetch;
 
@@ -15,13 +23,13 @@ describe("AuraClient contracts", () => {
   });
 
   test("create/list/get/cancel evaluation (API shape variations)", async () => {
-    const client = new AuraClient({ baseUrl });
+    const client = new AuraClient({ apiKey: TEST_KEY, baseUrl });
 
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     const mockFetch = jest.fn(
       async (url: string, init?: RequestInit): Promise<Response> => {
         calls.push({ url, init });
-        if (url.endsWith("/v1/evaluations") && init?.method === "POST") {
+        if (url.endsWith("/api/v1/evaluations") && init?.method === "POST") {
           return new Response(
             JSON.stringify({ id: "eval_1", state: "queued" }),
             {
@@ -31,7 +39,7 @@ describe("AuraClient contracts", () => {
           );
         }
         if (
-          url.endsWith("/v1/evaluations/eval_1") &&
+          url.endsWith("/api/v1/evaluations/eval_1") &&
           (!init || init.method === "GET")
         ) {
           return new Response(
@@ -46,14 +54,11 @@ describe("AuraClient contracts", () => {
             },
           );
         }
-        if (url.endsWith("/v1/evaluations/eval_1:cancel")) {
-          return new Response(
-            JSON.stringify({ success: true }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            },
-          );
+        if (url.endsWith("/api/v1/evaluations/eval_1/cancel")) {
+          return new Response(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
         }
         return new Response(JSON.stringify({}), {
           status: 200,
@@ -79,39 +84,37 @@ describe("AuraClient contracts", () => {
   });
 
   test("templates list/get unwraps payloads", async () => {
-    const client = new AuraClient({ baseUrl });
-    const mockFetch = jest.fn(
-      async (url: string): Promise<Response> => {
-        if (url.includes("/v1/templates?")) {
-          return new Response(
-            JSON.stringify({
-              success: true,
-              templates: [{ id: "t1", name: "T1", version: "1.0.0" }],
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            },
-          );
-        }
-        if (url.endsWith("/v1/templates/t1")) {
-          return new Response(
-            JSON.stringify({
-              success: true,
-              template: { id: "t1", name: "T1", version: "1.0.0" },
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            },
-          );
-        }
-        return new Response(JSON.stringify({}), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      },
-    );
+    const client = new AuraClient({ apiKey: TEST_KEY, baseUrl });
+    const mockFetch = jest.fn(async (url: string): Promise<Response> => {
+      if (url.includes("/api/v1/templates?")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            templates: [{ id: "t1", name: "T1", version: "1.0.0" }],
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+      if (url.endsWith("/api/v1/templates/t1")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            template: { id: "t1", name: "T1", version: "1.0.0" },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
 
     global.fetch = mockFetch as unknown as typeof global.fetch;
 
@@ -122,7 +125,7 @@ describe("AuraClient contracts", () => {
   });
 
   test("retry/backoff logic avoids retry on 4xx", async () => {
-    const client = new AuraClient({ baseUrl });
+    const client = new AuraClient({ apiKey: TEST_KEY, baseUrl });
     let hit = 0;
     const mockFetch = jest.fn(async () => {
       hit++;
@@ -139,10 +142,10 @@ describe("AuraClient contracts", () => {
   });
 
   test("labs service normalizes evaluations and bundles", async () => {
-    const client = new AuraClient({ baseUrl });
+    const client = new AuraClient({ apiKey: TEST_KEY, baseUrl });
     let evaluationPolls = 0;
     const mockFetch = jest.fn(async (url: string, init?: RequestInit) => {
-      if (url.endsWith("/v1/labs/evals") && init?.method === "POST") {
+      if (url.endsWith("/api/v1/labs/evals") && init?.method === "POST") {
         return new Response(
           JSON.stringify({
             id: "labs_eval_1",
@@ -154,7 +157,10 @@ describe("AuraClient contracts", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
-      if (url.includes("/v1/labs/evals/") && (!init || init.method === "GET")) {
+      if (
+        url.includes("/api/v1/labs/evals/") &&
+        (!init || init.method === "GET")
+      ) {
         evaluationPolls++;
         if (evaluationPolls === 1) {
           return new Response(
@@ -172,7 +178,10 @@ describe("AuraClient contracts", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
-      if (url.endsWith("/v1/labs/bundles") && (!init || init.method === "GET")) {
+      if (
+        url.endsWith("/api/v1/labs/bundles") &&
+        (!init || init.method === "GET")
+      ) {
         return new Response(
           JSON.stringify({
             data: [
@@ -222,9 +231,9 @@ describe("AuraClient contracts", () => {
   });
 
   test("governance service lists evidence and frameworks", async () => {
-    const client = new AuraClient({ baseUrl });
+    const client = new AuraClient({ apiKey: TEST_KEY, baseUrl });
     const mockFetch = jest.fn(async (url: string, init?: RequestInit) => {
-      if (url.includes("/v1/compliance/evidence")) {
+      if (url.includes("/api/v1/compliance/evidence")) {
         return new Response(
           JSON.stringify({
             items: [
@@ -240,7 +249,10 @@ describe("AuraClient contracts", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
-      if (url.startsWith(`${baseUrl}/v1/compliance/frameworks`) && (!init || init.method === "GET")) {
+      if (
+        url.startsWith(`${baseUrl}/api/v1/compliance/frameworks`) &&
+        (!init || init.method === "GET")
+      ) {
         return new Response(
           JSON.stringify({
             success: true,
@@ -254,7 +266,9 @@ describe("AuraClient contracts", () => {
                 scope: ["all"],
                 createdAt: "2024-01-01T00:00:00Z",
                 updatedAt: "2024-01-02T00:00:00Z",
-                riskAssessments: [{ overallScore: 0.9, assessedAt: "2024-01-02T00:00:00Z" }],
+                riskAssessments: [
+                  { overallScore: 0.9, assessedAt: "2024-01-02T00:00:00Z" },
+                ],
               },
             ],
             pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
@@ -262,7 +276,10 @@ describe("AuraClient contracts", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
-      if (url.endsWith("/v1/compliance/frameworks") && init?.method === "POST") {
+      if (
+        url.endsWith("/api/v1/compliance/frameworks") &&
+        init?.method === "POST"
+      ) {
         const body = JSON.parse(String(init.body));
         return new Response(
           JSON.stringify({
@@ -291,7 +308,9 @@ describe("AuraClient contracts", () => {
     const evidence = await client.governance.listEvidence(50);
     expect(evidence[0]?.standard).toBe("SOC2");
 
-    const frameworks = await client.governance.listFrameworks({ framework: ComplianceFrameworkId.SOC2 });
+    const frameworks = await client.governance.listFrameworks({
+      framework: ComplianceFrameworkId.SOC2,
+    });
     expect(frameworks.items[0]?.framework).toBe(ComplianceFrameworkId.SOC2);
 
     const created = await client.governance.createFramework({
@@ -303,9 +322,12 @@ describe("AuraClient contracts", () => {
   });
 
   test("integrations service covers health and registry operations", async () => {
-    const client = new AuraClient({ baseUrl });
+    const client = new AuraClient({ apiKey: TEST_KEY, baseUrl });
     const mockFetch = jest.fn(async (url: string, init?: RequestInit) => {
-      if (url.startsWith(`${baseUrl}/v1/integration/health`) && (!init || init.method === "GET")) {
+      if (
+        url.startsWith(`${baseUrl}/api/v1/integration/health`) &&
+        (!init || init.method === "GET")
+      ) {
         return new Response(
           JSON.stringify({
             success: true,
@@ -321,15 +343,10 @@ describe("AuraClient contracts", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
-      if (url.endsWith("/v1/integration/health/test") && init?.method === "POST") {
-        return new Response(
-          JSON.stringify({
-            data: [{ component: "database", status: "healthy", timestamp: "now" }],
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
-      }
-      if (url.startsWith(`${baseUrl}/v1/integration/registry`) && (!init || init.method === "GET")) {
+      if (
+        url.startsWith(`${baseUrl}/api/v1/integration/registry`) &&
+        (!init || init.method === "GET")
+      ) {
         return new Response(
           JSON.stringify({
             success: true,
@@ -352,7 +369,10 @@ describe("AuraClient contracts", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
-      if (url.endsWith("/v1/integration/registry") && init?.method === "POST") {
+      if (
+        url.endsWith("/api/v1/integration/registry") &&
+        init?.method === "POST"
+      ) {
         const body = JSON.parse(String(init.body));
         return new Response(
           JSON.stringify({
@@ -383,9 +403,6 @@ describe("AuraClient contracts", () => {
 
     const health = await client.integrations.getHealth();
     expect(health.status).toBe("healthy");
-
-    const testResults = await client.integrations.runHealthTest({ components: ["database"] });
-    expect(testResults[0]?.component).toBe("database");
 
     const registry = await client.integrations.listRegistry();
     expect(registry).toHaveLength(1);

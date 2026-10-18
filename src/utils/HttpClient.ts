@@ -11,9 +11,9 @@ import {
   ValidationError,
   NotFoundError,
 } from "../types/api";
-import { SDK_VERSION } from "../version";
 import { traceHeaders } from "./trace";
 import { createSDKLogger, type SDKLogger } from "./logger";
+import { SDK_VERSION } from "../version";
 
 export interface HttpClientOptions {
   baseUrl: string;
@@ -22,6 +22,23 @@ export interface HttpClientOptions {
   debug?: boolean;
   defaultHeaders?: Record<string, string>;
   retryConfig?: Partial<RetryConfig>;
+  /**
+   * Optional organization assertion. The organization a request runs in is
+   * derived from the credential (the API key record); a configured orgId is
+   * sent as a `?orgId=` query assertion and any mismatch is rejected with
+   * 403. Org headers are never sent (the platform strips them inbound).
+   */
+  orgId?: string;
+}
+
+interface AbortSignalContext {
+  signal?: AbortSignal;
+  cleanup: () => void;
+}
+
+interface RequestContext {
+  config: RequestInit;
+  cleanup: () => void;
 }
 
 export class FetchHttpClient implements HttpClient {
@@ -32,9 +49,11 @@ export class FetchHttpClient implements HttpClient {
   private logger: SDKLogger;
   private defaultHeaders: Record<string, string>;
   private retryConfig: RetryConfig;
+  private orgId?: string;
 
   constructor(options: HttpClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, ""); // Remove trailing slash
+    this.orgId = options.orgId;
     this.timeout = options.timeout || 30000; // 30 seconds default
     this.retries = options.retries || 3;
     this.debug = options.debug || false;
@@ -84,18 +103,19 @@ export class FetchHttpClient implements HttpClient {
     config?: RequestConfig,
   ): Promise<T> {
     const fullUrl = this.buildUrl(url);
-    const requestConfig = this.buildRequestConfig(method, data, config);
-
-    this.logger.info(`${method.toUpperCase()} ${fullUrl}`, {
-      headers: requestConfig.headers,
-      body: requestConfig.body,
-    });
 
     let lastError: unknown;
 
     for (let attempt = 0; attempt <= this.retryConfig.retries; attempt++) {
+      const requestContext = this.buildRequestContext(method, data, config);
+
+      this.logger.info(`${method.toUpperCase()} ${fullUrl}`, {
+        headers: requestContext.config.headers,
+        body: requestContext.config.body,
+      });
+
       try {
-        const response = await this.makeRequest(fullUrl, requestConfig);
+        const response = await this.makeRequest(fullUrl, requestContext.config);
         return await this.handleResponse<T>(response);
       } catch (error) {
         lastError = error;
@@ -114,6 +134,8 @@ export class FetchHttpClient implements HttpClient {
         );
 
         await this.sleep(delay);
+      } finally {
+        requestContext.cleanup();
       }
     }
 
@@ -122,27 +144,38 @@ export class FetchHttpClient implements HttpClient {
 
   private buildUrl(path: string): string {
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
-    return `${this.baseUrl}/${cleanPath}`;
+    let url = `${this.baseUrl}/${cleanPath}`;
+    if (this.orgId) {
+      const separator = url.includes("?") ? "&" : "?";
+      url = `${url}${separator}orgId=${encodeURIComponent(this.orgId)}`;
+    }
+    return url;
   }
 
-  private buildRequestConfig(
+  private buildRequestContext(
     method: string,
     data?: unknown,
     config?: RequestConfig,
-  ): RequestInit {
+  ): RequestContext {
     const headers = {
       ...this.defaultHeaders,
       ...traceHeaders(),
       ...config?.headers,
     };
+    const abortContext = this.createAbortSignal(config?.timeout);
 
     const requestConfig: RequestInit = {
       method: method.toUpperCase(),
       headers,
-      signal: this.createAbortSignal(config?.timeout),
+      signal: abortContext.signal,
     };
 
-    if (typeof data !== "undefined" && ["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
+    // DELETE carries a body only when the caller passes one (some routes,
+    // e.g. approval-decision revocation, require `{ evidence }` on DELETE).
+    if (
+      typeof data !== "undefined" &&
+      ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase())
+    ) {
       if (typeof FormData !== "undefined" && data instanceof FormData) {
         requestConfig.body = data;
         // Remove Content-Type for FormData (browser will set it with boundary)
@@ -155,22 +188,31 @@ export class FetchHttpClient implements HttpClient {
       }
     }
 
-    return requestConfig;
+    return {
+      config: requestConfig,
+      cleanup: abortContext.cleanup,
+    };
   }
 
-  private createAbortSignal(timeout?: number): AbortSignal | undefined {
+  private createAbortSignal(timeout?: number): AbortSignalContext {
     if (typeof AbortController === "undefined") {
-      return undefined; // AbortController not available in this environment
+      return {
+        signal: undefined,
+        cleanup: () => undefined,
+      };
     }
 
     const controller = new AbortController();
     const timeoutMs = timeout || this.timeout;
 
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       controller.abort();
     }, timeoutMs);
 
-    return controller.signal;
+    return {
+      signal: controller.signal,
+      cleanup: () => clearTimeout(timeoutId),
+    };
   }
 
   private async makeRequest(
@@ -179,7 +221,8 @@ export class FetchHttpClient implements HttpClient {
   ): Promise<Response> {
     try {
       const fetchImpl =
-        typeof globalThis !== "undefined" && typeof globalThis.fetch === "function"
+        typeof globalThis !== "undefined" &&
+        typeof globalThis.fetch === "function"
           ? (globalThis.fetch.bind(globalThis) as typeof crossFetch)
           : crossFetch;
       const response = await fetchImpl(url, config);
@@ -201,7 +244,10 @@ export class FetchHttpClient implements HttpClient {
     const rateLimitInfo = this.extractRateLimitInfo(response);
 
     if (rateLimitInfo && rateLimitInfo.remaining === 0) {
-      this.logger.warn("Rate limit exhausted", rateLimitInfo as unknown as Record<string, unknown>);
+      this.logger.warn(
+        "Rate limit exhausted",
+        rateLimitInfo as unknown as Record<string, unknown>,
+      );
     }
 
     if (!response.ok) {
@@ -239,7 +285,11 @@ export class FetchHttpClient implements HttpClient {
       const contentType = response.headers.get("content-type");
       if (contentType?.includes("application/json")) {
         const parsed = await response.json();
-        if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          !Array.isArray(parsed)
+        ) {
           errorPayload = parsed as Record<string, unknown>;
         } else {
           errorPayload = { error: parsed } as Record<string, unknown>;
@@ -251,14 +301,10 @@ export class FetchHttpClient implements HttpClient {
       errorPayload = { error: `HTTP ${response.status}` };
     }
 
-    const messageCandidate = errorPayload.error ?? errorPayload.message;
-    const message =
-      typeof messageCandidate === "string"
-        ? messageCandidate
-        : `HTTP ${response.status}`;
-    const code =
-      typeof errorPayload.code === "string" ? errorPayload.code : undefined;
-    const details = "details" in errorPayload ? errorPayload.details : undefined;
+    const { message, code, details } = parseErrorPayload(
+      errorPayload,
+      response.status,
+    );
 
     switch (response.status) {
       case 400:
@@ -282,7 +328,11 @@ export class FetchHttpClient implements HttpClient {
     details: unknown,
     rateLimitInfo: RateLimitInfo,
   ): unknown {
-    if (typeof details === "object" && details !== null && !Array.isArray(details)) {
+    if (
+      typeof details === "object" &&
+      details !== null &&
+      !Array.isArray(details)
+    ) {
       return { ...details, rateLimitInfo };
     }
 
@@ -331,21 +381,94 @@ export class FetchHttpClient implements HttpClient {
     return this.executeRequest<T>("GET", url, undefined, config);
   }
 
-  async post<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+  async post<T>(
+    url: string,
+    data?: unknown,
+    config?: RequestConfig,
+  ): Promise<T> {
     return this.executeRequest<T>("POST", url, data, config);
   }
 
-  async put<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+  async put<T>(
+    url: string,
+    data?: unknown,
+    config?: RequestConfig,
+  ): Promise<T> {
     return this.executeRequest<T>("PUT", url, data, config);
   }
 
-  async delete<T>(url: string, config?: RequestConfig): Promise<T> {
-    return this.executeRequest<T>("DELETE", url, undefined, config);
+  async delete<T>(
+    url: string,
+    config?: RequestConfig,
+    data?: unknown,
+  ): Promise<T> {
+    return this.executeRequest<T>("DELETE", url, data, config);
   }
 
-  async patch<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T> {
+  async patch<T>(
+    url: string,
+    data?: unknown,
+    config?: RequestConfig,
+  ): Promise<T> {
     return this.executeRequest<T>("PATCH", url, data, config);
   }
+}
+
+/**
+ * Reads the error fields from a failed response body.
+ *
+ * Two shapes are supported:
+ * - flat: `{ error: "message", code?, details? }` (most platform routes);
+ * - nested: `{ error: { code, message, details? } }` (Enterprise
+ *   Intelligence and other envelope routes).
+ *
+ * When the body carries neither (for example the Enterprise Intelligence
+ * health probe, which answers 503 with its health body), the body itself is
+ * kept as `details` so callers can still read it.
+ */
+export function parseErrorPayload(
+  payload: Record<string, unknown>,
+  status: number,
+): { message: string; code?: string; details?: unknown } {
+  const nested = payload.error;
+  if (typeof nested === "object" && nested !== null && !Array.isArray(nested)) {
+    const envelope = nested as Record<string, unknown>;
+    const extra = Object.fromEntries(
+      Object.entries(envelope).filter(
+        ([key]) => key !== "code" && key !== "message" && key !== "details",
+      ),
+    );
+    const details =
+      "details" in envelope
+        ? envelope.details
+        : Object.keys(extra).length > 0
+          ? extra
+          : undefined;
+    return {
+      message:
+        typeof envelope.message === "string"
+          ? envelope.message
+          : `HTTP ${status}`,
+      code: typeof envelope.code === "string" ? envelope.code : undefined,
+      details,
+    };
+  }
+
+  const messageCandidate = payload.error ?? payload.message;
+  const hasErrorFields = "error" in payload || "message" in payload;
+  return {
+    message:
+      typeof messageCandidate === "string"
+        ? messageCandidate
+        : `HTTP ${status}`,
+    code: typeof payload.code === "string" ? payload.code : undefined,
+    details:
+      "details" in payload
+        ? payload.details
+        : !hasErrorFields && Object.keys(payload).length > 0
+          ? payload
+          : undefined,
+  };
 }
 
 // Query string utilities

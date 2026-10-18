@@ -2,15 +2,15 @@
 export default {
   testEnvironment: "node",
   roots: ["<rootDir>/src"],
-  extensionsToTreatAsEsm: ['.ts'],
+  extensionsToTreatAsEsm: [".ts"],
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", { 
+    "^.+\\.tsx?$": ["ts-jest", {
       useESM: true,
-      tsconfig: "<rootDir>/tsconfig.json" 
+      tsconfig: "<rootDir>/tsconfig.json",
     }],
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
+    "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   moduleFileExtensions: ["ts", "tsx", "js", "mjs"],
   testTimeout: 30000,

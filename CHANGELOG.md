@@ -4,6 +4,84 @@ All notable changes to `@auraone/sdk` are documented here. This project follows 
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-18
+
+Published to npm on 2026-10-18 from the AuraOne monorepo release commit
+`9b9548c1993477b792f8000a93854a6313cfe450`, which npm records as the package
+`gitHead`. This repository mirrors that package source: the `v1.0.0` tag
+carries the same files as `sdks/typescript` at that commit.
+
+### Breaking
+
+- API keys must be platform-issued `ak_<8 hex>_<64 hex>` keys; `aura_live_*`,
+  `aura_test_*`, and `aoc_*` keys are rejected.
+- All requests target the deployed `/api/...` contract on
+  `https://api.auraone.ai`; the bare `/v1/*` and `/graphql` paths used by
+  0.x were removed.
+- Organization is derived from the API key record server-side. A configured
+  `orgId` is sent as a `?orgId=` assertion (a mismatch returns 403), never as
+  a trusted header. The `"public"` org default is gone.
+- `EvaluationsService.cancel` posts to `/api/v1/evaluations/{id}/cancel`;
+  statuses include `pending` and `cancelled`; `metrics` parses the platform's
+  `[{name, value, timestamp}]` array.
+- `AuthService.refreshToken` sends `{ refreshToken }`, matching the platform
+  schema.
+- Removed from the package exports: `AstronomyService`, `BiologyService`,
+  `ChemistryService`, `ClimateService`, `EnvironmentalService`,
+  `FinancialService`, `GenomicsService`, `ManufacturingService`,
+  `MaterialsService`, `MedicalImagingService`, `PhysicsService`,
+  `RoboticsService` (with `ROBOTICS_INTERNAL_SERIALIZER_FORMATS` and
+  `ROBOTICS_PUBLIC_EXPORT_FORMATS`), and `Spatial3DService`. The
+  `EvaluationsService` and `EvaluationStatus` named exports were also removed;
+  evaluations remain available as `client.evaluations`.
+
+### Behavior change
+
+- Errors now come from the nested error body. When a route answers
+  `{ error: { code, message } }`, the thrown error's `message` and `code` are
+  the route's values, for every service. Before, `message` was
+  `HTTP <status>` and `code` was empty. Code that matched on `"HTTP 404"` or
+  on an empty `code` must match on `error.code` or the error class
+  (`NotFoundError`, `ValidationError`, ...) instead. Status codes and error
+  classes are unchanged. Extra envelope keys, such as graph `issues`, go to
+  `details`; a body with no error fields is kept as `details`.
+
+### Added
+
+- `@auraone/sdk/node` and `@auraone/sdk/browser` entry points with
+  `createNodeClient` and `createBrowserClient`, alongside the root export.
+- Enterprise Intelligence covers every route under
+  `api/v1/enterprise-intelligence` (96 operations) through grouped clients:
+  `workflows`, `runs`, `batches`, `deliveries`, `humanTasks`, `connectors`,
+  `toolBindings`, `contextSources`, `historicalSets`, `improvement`,
+  `regression`, `operations`, `registry`, plus `getSettings` and
+  `getDashboard`. Request types follow the route schemas.
+- `EnterpriseIntelligenceUnavailableError` and
+  `isEnterpriseIntelligenceUnavailable` for any `503`; `isTruncated(meta)` for
+  capped lists. Enterprise Intelligence path ids are URL-encoded, and
+  idempotency keys outside 8-255 characters fail locally with
+  `ValidationError`.
+- Services for attention, autopilot, benchmarks, capacity, certification,
+  environments, optimization, regression, and visualization routes;
+  `GraphQLService` (also exported as `GraphQLClient`) with
+  `GRAPHQL_PERSISTED_QUERIES`; integration connector clients for the
+  namespaces in `SUPPORTED_CONNECTOR_NAMESPACES`.
+- `getBaseUrl()` public accessor; `SDK_VERSION` exported (injected from
+  `package.json` at build).
+- `HttpClient.delete(url, config, data?)` sends an optional body.
+
+### Notes
+
+- `src/__tests__/auth.test.ts` and `src/__tests__/evaluations.contract.test.ts`
+  read shared fixtures from the AuraOne monorepo (`sdks/fixtures/` and
+  `sdks/contract-fixtures/`), which are not part of this repository, so they
+  do not run standalone here.
+- The published type declarations declare `VERSION` and `SDK_VERSION` with the
+  literal type `"__SDK_VERSION__"`; the runtime value is `"1.0.0"`.
+- This release was built and published from the monorepo, not by this
+  repository's `release-npm.yml` workflow. It has no npm provenance
+  attestation and no GitHub Release assets.
+
 ## [0.2.0] - 2026-07-12
 
 ### Added

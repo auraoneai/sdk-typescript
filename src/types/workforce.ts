@@ -8,7 +8,7 @@ export type WorkforceJob = {
 
 export type PrioritizedJob = WorkforceJob & { priority: number };
 
-export type SLAStatus = 'on_track' | 'warning' | 'breached';
+export type SLAStatus = "on_track" | "warning" | "breached";
 
 export type SLAConfig = {
   warningThresholdMs: number;

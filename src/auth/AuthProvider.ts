@@ -92,28 +92,32 @@ export class AuthProvider {
 
     try {
       const response = await httpClient.post<{
-        access_token: string;
-        refresh_token?: string;
-        expires_in?: number;
+        success?: boolean;
+        tokens?: {
+          accessToken: string;
+          refreshToken?: string;
+          tokenType?: string;
+          expiresIn?: number;
+          expiresAt?: number;
+        };
       }>(
         refreshEndpoint,
-        {
-          refresh_token: this.refreshToken,
-          grant_type: "refresh_token",
-        },
+        // /api/auth/refresh expects { refreshToken } (camelCase); the legacy
+        // { refresh_token, grant_type } body is rejected by the route schema.
+        { refreshToken: this.refreshToken },
         config,
       );
 
-      if (response.access_token) {
-        this.token = response.access_token;
+      if (response.tokens?.accessToken) {
+        this.token = response.tokens.accessToken;
 
-        if (response.refresh_token) {
-          this.refreshToken = response.refresh_token;
+        if (response.tokens.refreshToken) {
+          this.refreshToken = response.tokens.refreshToken;
         }
 
         // Notify callback about token refresh
         if (this.onTokenRefresh) {
-          this.onTokenRefresh(response.access_token);
+          this.onTokenRefresh(response.tokens.accessToken);
         }
 
         return true;
@@ -177,12 +181,29 @@ export class AuthProvider {
   }
 
   /**
-   * Validate API key format
+   * Validate API key format.
+   *
+   * Platform-issued keys have the form `ak_<8 hex>_<64 hex>` (see
+   * `apps/src/lib/security/api-keys.ts`). Compute-issued keys use the
+   * `aoc_<8 hex>_<secret>` boundary (`apps/src/lib/compute/compute-auth.ts`)
+   * and are accepted only for `/api/compute/v1` calls. Legacy `aura_*` keys
+   * are rejected.
    */
   static isValidApiKey(apiKey: string): boolean {
-    // AuraOne API keys follow the format: aura_live_xxxx or aura_test_xxxx
-    const apiKeyPattern = /^aura_(live|test)_[a-zA-Z0-9]{32,}$/;
-    return apiKeyPattern.test(apiKey);
+    // Platform clients accept only platform-issued keys (R2). Compute-issued
+    // `aoc_` keys are intentionally rejected here — use isComputeApiKey to
+    // distinguish them for error messages.
+    const platformKeyPattern = /^ak_[a-f0-9]{8}_[a-f0-9]{64}$/;
+    return platformKeyPattern.test(apiKey);
+  }
+
+  /**
+   * True when the key is a Compute-authority key (`aoc_`). Compute keys are
+   * valid only against `/api/compute/v1` and are rejected by every other
+   * authenticator.
+   */
+  static isComputeApiKey(apiKey: string): boolean {
+    return /^aoc_[a-f0-9]{8}_[A-Za-z0-9_-]{8,128}$/.test(apiKey);
   }
 
   /**
@@ -206,7 +227,11 @@ export class AuthProvider {
       const payload = token.split(".")[1];
       const decoded = Buffer.from(payload, "base64").toString("utf8");
       const parsed = JSON.parse(decoded);
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed)
+      ) {
         return parsed as Record<string, unknown>;
       }
       return null;

@@ -3,6 +3,8 @@
 
 export interface ClientConfig {
   apiKey?: string;
+  accessToken?: string;
+  refreshToken?: string;
   baseUrl?: string;
   timeout?: number;
   retries?: number;
@@ -250,6 +252,63 @@ export interface WebhookEvent {
   deliveryId: string;
 }
 
+export type ProgramDeliveryReasonFamily =
+  | "CORRECTNESS"
+  | "COMPLETENESS"
+  | "INSTRUCTION_OR_RUBRIC_MISMATCH"
+  | "FORMAT_OR_SCHEMA"
+  | "POLICY_SAFETY_PRIVACY_COMPLIANCE"
+  | "RIGHTS_OR_PROVENANCE"
+  | "STALENESS"
+  | "DUPLICATION"
+  | "CUSTOMER_PREFERENCE"
+  | "LATER_MODEL_OR_EVALUATION_FAILURE"
+  | "OPERATIONAL_DELIVERY"
+  | "OTHER";
+
+export interface AcceptProgramDeliveryRequest {
+  action: "accept";
+  accepted: true;
+  note?: string;
+  idempotencyKey: string;
+}
+
+export interface RejectProgramDeliveryRequest {
+  action: "accept";
+  accepted: false;
+  taxonomyVersion: "2026-08-20" | string;
+  reasonCode: string;
+  reasonDetail?: string;
+  idempotencyKey: string;
+}
+
+export type DecideProgramDeliveryRequest =
+  | AcceptProgramDeliveryRequest
+  | RejectProgramDeliveryRequest;
+
+export interface ProgramDeliveryDecisionReason {
+  taxonomyVersion: string;
+  code: string;
+  family: ProgramDeliveryReasonFamily;
+  detail: string | null;
+  escalation: "SAFETY" | "PRIVACY" | "RIGHTS" | null;
+  correctionRequired: boolean;
+}
+
+export interface ProgramDeliveryDecisionEvent {
+  id: string;
+  deliveryId: string;
+  type: "ACCEPTED" | "REJECTED";
+  actorId: string;
+  principalType: string;
+  createdAt: string;
+  eventSchemaVersion: string | null;
+  reason: ProgramDeliveryDecisionReason | null;
+  legacyUnclassified: boolean;
+  legacyNote: string | null;
+  ledgerEventId: string | null;
+}
+
 // Error classes
 export class AuraOneError extends Error {
   public code?: string;
@@ -392,11 +451,7 @@ export type LabBundleDomain =
   | "robotics"
   | "spatial3d";
 
-export type LabBundleStatus =
-  | "draft"
-  | "provisioning"
-  | "ready"
-  | "failed";
+export type LabBundleStatus = "draft" | "provisioning" | "ready" | "failed";
 
 export interface LabBundlePolicies {
   costCeilingUsd?: number;
@@ -604,7 +659,8 @@ export interface HttpClient {
   get<T>(url: string, config?: RequestConfig): Promise<T>;
   post<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T>;
   put<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T>;
-  delete<T>(url: string, config?: RequestConfig): Promise<T>;
+  /** `data`, when given, is sent as the DELETE request body. */
+  delete<T>(url: string, config?: RequestConfig, data?: unknown): Promise<T>;
   patch<T>(url: string, data?: unknown, config?: RequestConfig): Promise<T>;
 }
 

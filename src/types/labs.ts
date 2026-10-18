@@ -1,6 +1,6 @@
-export type LabDomain = 'health' | 'finance' | 'av' | 'manufacturing';
+export type LabDomain = "health" | "finance" | "av" | "manufacturing";
 
-export type LabBundleStatus = 'draft' | 'provisioning' | 'ready' | 'failed';
+export type LabBundleStatus = "draft" | "provisioning" | "ready" | "failed";
 
 export type LabBundlePolicies = {
   costCeilingUsd: number;
@@ -24,6 +24,6 @@ export type LabBundle = {
 
 export type AgentEvalRun = {
   id: string;
-  status: 'created' | 'running' | 'completed' | 'failed';
+  status: "created" | "running" | "completed" | "failed";
   result?: { role: string; content: string };
 };

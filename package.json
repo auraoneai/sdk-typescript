@@ -1,86 +1,73 @@
 {
   "name": "@auraone/sdk",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "type": "module",
-  "description": "TypeScript SDK for Node.js backends using the hosted AuraOne API, with typed evaluations, authentication, retries, polling, REST, and GraphQL.",
+  "description": "Official TypeScript SDK for AuraOne API - Comprehensive AI platform for training, analytics, and collaboration",
   "main": "dist/index.cjs",
-  "module": "dist/index.esm.js",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
-  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.esm.js",
+      "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js",
+      "require": "./dist/node.cjs"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "require": "./dist/browser.cjs"
     },
     "./package.json": "./package.json"
   },
-  "typesVersions": {
-    "*": {
-      "*": [
-        "dist/index.d.ts"
-      ]
-    }
-  },
   "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
+    "dist"
   ],
-  "engines": {
-    "node": ">=18"
-  },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "scripts": {
-    "build": "rollup -c",
-    "build:watch": "rollup -c -w",
-    "test": "npm run test:unit && npm run test:release",
-    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:release": "node --test scripts/release/*.test.mjs",
+    "build": "pnpm exec rollup -c",
+    "verify:package-imports": "node scripts/verify-package-imports.mjs",
+    "build:watch": "pnpm exec rollup -c -w",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "typecheck": "tsc --noEmit",
     "type-check": "tsc --noEmit",
-    "audit:production": "npm audit --omit=dev",
-    "package:test": "node scripts/release/test-package.mjs",
-    "release:prepare": "node scripts/release/prepare-release.mjs",
-    "release:validate": "node scripts/release/validate-release.mjs",
-    "release:preflight": "npm run release:validate && npm run audit:production && npm run typecheck && npm run lint && npm test && npm run build && npm run package:test",
-    "prepack": "npm run build",
-    "prepublishOnly": "npm run release:validate",
+    "prepublishOnly": "npm run build",
     "dev": "npm run build:watch"
   },
   "keywords": [
     "auraone",
-    "typescript",
-    "nodejs",
+    "api",
     "sdk",
-    "api-client",
-    "hosted-api",
-    "ai-evaluation",
-    "agent-evaluation",
-    "evaluation-api",
-    "graphql-client",
-    "rest-client"
+    "typescript",
+    "ml",
+    "ai",
+    "training",
+    "analytics",
+    "collaboration",
+    "quality",
+    "safety"
   ],
-  "author": {
-    "name": "AuraOne",
-    "url": "https://www.auraone.ai"
-  },
+  "author": "AuraOne Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/auraoneai/sdk-typescript.git"
+    "url": "https://github.com/auraoneai/sdk-typescript.git"
   },
   "bugs": {
     "url": "https://github.com/auraoneai/sdk-typescript/issues"
   },
-  "homepage": "https://www.auraone.ai/developers",
+  "homepage": "https://auraone.ai/open/sdk-typescript",
   "devDependencies": {
+    "@langchain/core": "^1.2.9",
     "@rollup/plugin-typescript": "^11.1.5",
     "@types/jest": "^29.5.8",
     "@types/node": "^20.9.0",
@@ -89,7 +76,6 @@
     "@typescript-eslint/parser": "^6.11.0",
     "eslint": "^8.54.0",
     "jest": "^29.7.0",
-    "langchain": "^0.1.0",
     "rollup": "^4.5.0",
     "rollup-plugin-dts": "^6.1.0",
     "ts-jest": "^29.1.1",
@@ -98,7 +84,7 @@
   },
   "dependencies": {
     "cross-fetch": "^4.0.0",
-    "qs": "^6.15.3"
+    "qs": "^6.11.2"
   },
   "peerDependencies": {
     "typescript": ">=4.0.0"

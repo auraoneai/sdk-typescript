@@ -22,7 +22,7 @@ export class AuthService {
       ? buildQueryString({ stats: options.includeStats })
       : "";
     return this.httpClient.get<ListAPIKeysResponse>(
-      `/api/auth/api-keys${queryString}`,
+      `/api/v1/api-keys${queryString}`,
       config,
     );
   }
@@ -39,7 +39,7 @@ export class AuthService {
     config?: RequestConfig,
   ): Promise<APIKeyResponse> {
     return this.httpClient.post<APIKeyResponse>(
-      "/api/auth/api-keys",
+      "/api/v1/api-keys",
       {
         action: "create",
         ...request,
@@ -56,7 +56,7 @@ export class AuthService {
     config?: RequestConfig,
   ): Promise<APIKeyResponse> {
     return this.httpClient.post<APIKeyResponse>(
-      "/api/auth/api-keys",
+      "/api/v1/api-keys",
       {
         action: "rotate",
         keyId,
@@ -73,7 +73,7 @@ export class AuthService {
     config?: RequestConfig,
   ): Promise<APIKeyResponse> {
     return this.httpClient.post<APIKeyResponse>(
-      "/api/auth/api-keys",
+      "/api/v1/api-keys",
       {
         action: "revoke",
         keyId,
@@ -93,7 +93,7 @@ export class AuthService {
     };
     message: string;
   }> {
-    return this.httpClient.put("/api/auth/api-keys", undefined, config);
+    return this.httpClient.put("/api/v1/api-keys", undefined, config);
   }
 
   /**
@@ -112,25 +112,40 @@ export class AuthService {
   }
 
   /**
-   * Refresh authentication token
+   * Refresh authentication token.
+   *
+   * POST /api/auth/refresh takes `{ refreshToken }` and returns
+   * `{ success, tokens: { accessToken, refreshToken, tokenType, expiresIn } }`.
    */
   async refreshToken(
     refreshToken: string,
     config?: RequestConfig,
   ): Promise<{
-    access_token: string;
-    refresh_token?: string;
-    expires_in?: number;
-    token_type: string;
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn?: number;
+    tokenType?: string;
   }> {
-    return this.httpClient.post(
-      "/api/auth/refresh",
-      {
-        refresh_token: refreshToken,
-        grant_type: "refresh_token",
-      },
-      config,
-    );
+    const response = await this.httpClient.post<{
+      success?: boolean;
+      tokens?: {
+        accessToken: string;
+        refreshToken?: string;
+        tokenType?: string;
+        expiresIn?: number;
+      };
+    }>("/api/auth/refresh", { refreshToken }, config);
+
+    if (!response.tokens?.accessToken) {
+      throw new Error("Refresh response missing tokens.accessToken");
+    }
+
+    return {
+      accessToken: response.tokens.accessToken,
+      refreshToken: response.tokens.refreshToken,
+      expiresIn: response.tokens.expiresIn,
+      tokenType: response.tokens.tokenType,
+    };
   }
 
   /**

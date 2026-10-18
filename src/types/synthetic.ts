@@ -1,12 +1,12 @@
 export type DPSpec = {
   epsilon: number;
-  mechanism: 'laplace' | 'gaussian' | 'exponential';
+  mechanism: "laplace" | "gaussian" | "exponential";
 };
 
 export type StyleProfile = {
   id: string;
-  tone: 'formal' | 'casual' | 'technical' | 'creative';
-  structure: 'paragraph' | 'bullet-points' | 'dialogue';
+  tone: "formal" | "casual" | "technical" | "creative";
+  structure: "paragraph" | "bullet-points" | "dialogue";
   complexityLevel: number;
 };
 

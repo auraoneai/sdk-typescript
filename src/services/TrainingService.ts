@@ -135,7 +135,11 @@ export class TrainingService {
       .map((line) => {
         try {
           const parsed = JSON.parse(line);
-          if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          if (
+            typeof parsed !== "object" ||
+            parsed === null ||
+            Array.isArray(parsed)
+          ) {
             throw new Error("Training records must be JSON objects");
           }
           return parsed as Record<string, unknown>;

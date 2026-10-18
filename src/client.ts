@@ -4,7 +4,6 @@ import {
   EvaluationConfig,
   EvaluationResult,
   Template,
-  RewardSpec,
   CreateEvaluationRequest,
 } from "./services/EvaluationsService";
 
@@ -13,12 +12,13 @@ export {
   EvaluationConfig,
   EvaluationResult,
   Template,
-  RewardSpec,
   CreateEvaluationRequest,
 };
 
 export interface AuraClientOptions {
   apiKey?: string;
+  accessToken?: string;
+  refreshToken?: string;
   baseUrl?: string;
   orgId?: string;
   timeout?: number;
@@ -31,6 +31,8 @@ export class AuraClient extends AuraOneClient {
   constructor(options: AuraClientOptions = {}) {
     super({
       apiKey: options.apiKey,
+      accessToken: options.accessToken,
+      refreshToken: options.refreshToken,
       baseUrl: options.baseUrl,
       orgId: options.orgId,
       timeout: options.timeout,
@@ -68,14 +70,22 @@ export class AuraClient extends AuraOneClient {
     evaluationId: string,
     timeoutSeconds: number = 300,
   ): Promise<EvaluationResult> {
-    return this.evaluations.waitForCompletion(evaluationId, timeoutSeconds, 1000);
+    return this.evaluations.waitForCompletion(
+      evaluationId,
+      timeoutSeconds,
+      1000,
+    );
   }
 
   async cancelEvaluation(evaluationId: string): Promise<EvaluationResult> {
     return this.evaluations.cancel(evaluationId);
   }
 
-  async listTemplates(options?: { domain?: string; page?: number; per_page?: number }): Promise<Template[]> {
+  async listTemplates(options?: {
+    domain?: string;
+    page?: number;
+    per_page?: number;
+  }): Promise<Template[]> {
     return this.evaluations.listTemplates(options);
   }
 
@@ -85,13 +95,5 @@ export class AuraClient extends AuraOneClient {
 
   async createTemplate(template: Omit<Template, "id">): Promise<Template> {
     return this.evaluations.createTemplate(template);
-  }
-
-  async compileReward(yamlSpec: string) {
-    return this.evaluations.compileReward(yamlSpec);
-  }
-
-  async listRewardSpecs(options?: { page?: number; per_page?: number }): Promise<RewardSpec[]> {
-    return this.evaluations.listRewardSpecs(options);
   }
 }

@@ -5,18 +5,37 @@ import { AnalyticsService } from "../services/AnalyticsService";
 import { TrainingService } from "../services/TrainingService";
 import { BillingService } from "../services/BillingService";
 import { CollaborationService } from "../services/CollaborationService";
-import { RoboticsService } from "../services/RoboticsService";
 import { EvaluationsService } from "../services/EvaluationsService";
+import { BenchmarksService } from "../services/BenchmarksService";
+import { CertificationService } from "../services/CertificationService";
+import { RegressionService } from "../services/RegressionService";
 import { LabsService } from "../services/LabsService";
 import { GovernanceService } from "../services/GovernanceService";
 import { IntegrationsService } from "../services/IntegrationsService";
-import { ClientConfig, HttpClient, AuthenticationError, RequestConfig } from "../types/api";
+import { EnvironmentsService } from "../services/EnvironmentsService";
+import { EnterpriseIntelligenceService } from "../services/EnterpriseIntelligenceService";
+import { AttentionService } from "../services/AttentionService";
+import { OptimizationService } from "../services/OptimizationService";
+import { AutopilotService } from "../services/AutopilotService";
+import { VisualizationService } from "../services/VisualizationService";
+import { CapacityService } from "../services/CapacityService";
+import { FederationService } from "../services/FederationService";
+import { GraphQLService } from "../services/GraphQLService";
+import {
+  ClientConfig,
+  HttpClient,
+  AuthenticationError,
+} from "../types/api";
 import { createSDKLogger } from "../utils/logger";
-import { GraphQLClient } from "../graphql/GraphQLClient";
 import { SDK_VERSION } from "../version";
 
 /**
- * Main AuraOne API client
+ * Main AuraOne API client.
+ *
+ * Route contract: all paths are `/api/...` on the public host
+ * (`https://api.auraone.ai`). The organization context is derived from the
+ * API key record server-side; a configured `orgId` is sent only as a
+ * `?orgId=` query assertion and must equal the key's organization.
  */
 export class AuraOneClient {
   private httpClient: HttpClient;
@@ -29,13 +48,23 @@ export class AuraOneClient {
   public readonly training: TrainingService;
   public readonly billing: BillingService;
   public readonly collaboration: CollaborationService;
-  public readonly robotics: RoboticsService;
   public readonly evaluations: EvaluationsService;
-  public readonly graphql: GraphQLClient;
+  public readonly benchmarks: BenchmarksService;
+  public readonly certification: CertificationService;
+  public readonly regression: RegressionService;
   public readonly labs: LabsService;
   public readonly governance: GovernanceService;
   public readonly integrations: IntegrationsService;
-  private readonly orgId: string;
+  public readonly environments: EnvironmentsService;
+  public readonly enterpriseIntelligence: EnterpriseIntelligenceService;
+  public readonly attention: AttentionService;
+  public readonly optimization: OptimizationService;
+  public readonly autopilot: AutopilotService;
+  public readonly visualization: VisualizationService;
+  public readonly capacity: CapacityService;
+  public readonly federation: FederationService;
+  public readonly graphql: GraphQLService;
+  private readonly orgId?: string;
 
   constructor(config: ClientConfig = {}) {
     // Validate configuration
@@ -44,13 +73,15 @@ export class AuraOneClient {
     // Initialize authentication provider
     this.authProvider = new AuthProvider({
       apiKey: config.apiKey,
+      token: config.accessToken,
+      refreshToken: config.refreshToken,
       onTokenRefresh: (_newToken) => {
         void _newToken;
         createSDKLogger(config.debug).info("Token refreshed successfully");
       },
     });
 
-    this.orgId = config.orgId ?? "public";
+    this.orgId = config.orgId;
 
     // Initialize HTTP client
     this.fetchClient = new FetchHttpClient({
@@ -58,9 +89,9 @@ export class AuraOneClient {
       timeout: config.timeout || 30000,
       retries: config.retries || 3,
       debug: config.debug || false,
+      orgId: this.orgId,
       defaultHeaders: {
         ...this.authProvider.getAuthHeaders(),
-        "X-Org-Id": this.orgId,
       },
     });
     this.httpClient = this.fetchClient;
@@ -71,24 +102,26 @@ export class AuraOneClient {
     this.training = new TrainingService(this.httpClient);
     this.billing = new BillingService(this.httpClient);
     this.collaboration = new CollaborationService(this.httpClient);
-    this.robotics = new RoboticsService({
-      baseUrl: config.baseUrl || "https://api.auraone.ai",
-      apiKey: config.apiKey || "",
+    this.evaluations = new EvaluationsService(this.httpClient);
+    this.benchmarks = new BenchmarksService(this.httpClient);
+    this.certification = new CertificationService(this.httpClient);
+    this.regression = new RegressionService(this.httpClient);
+    this.labs = new LabsService(this.httpClient);
+    this.governance = new GovernanceService(this.httpClient);
+    this.integrations = new IntegrationsService(this.httpClient);
+    this.environments = new EnvironmentsService(this.httpClient);
+    this.enterpriseIntelligence = new EnterpriseIntelligenceService(
+      this.httpClient,
+    );
+    this.attention = new AttentionService(this.httpClient);
+    this.optimization = new OptimizationService(this.httpClient);
+    this.autopilot = new AutopilotService(this.httpClient);
+    this.visualization = new VisualizationService(this.httpClient);
+    this.capacity = new CapacityService(this.httpClient);
+    this.federation = new FederationService(this.httpClient, {
+      orgId: this.orgId,
     });
-    const orgScopedConfig: RequestConfig = {
-      headers: {
-        "X-Org-Id": this.orgId,
-      },
-    };
-    this.evaluations = new EvaluationsService(this.httpClient, orgScopedConfig);
-    this.graphql = new GraphQLClient(this.httpClient, "/graphql", {
-      headers: {
-        "X-Org-Id": this.orgId,
-      },
-    });
-    this.labs = new LabsService(this.httpClient, orgScopedConfig);
-    this.governance = new GovernanceService(this.httpClient, orgScopedConfig);
-    this.integrations = new IntegrationsService(this.httpClient, orgScopedConfig);
+    this.graphql = new GraphQLService(this.httpClient);
 
     // Set up request interceptor for authentication
     this.setupRequestInterceptor();
@@ -123,31 +156,36 @@ export class AuraOneClient {
       throw new AuthenticationError("Invalid JWT token format");
     }
 
-    const client = new AuraOneClient(options);
-    client.authProvider.setToken(token, refreshToken);
-    client.updateAuthHeaders();
-    return client;
+    return new AuraOneClient({
+      ...options,
+      accessToken: token,
+      refreshToken,
+    });
   }
 
   /**
    * Create AuraOne client from environment variables
    */
   static fromEnvironment(
-    options: Omit<ClientConfig, "apiKey"> = {},
+    options: Omit<ClientConfig, "apiKey" | "accessToken" | "refreshToken"> = {},
   ): AuraOneClient {
-    const authProvider = AuthProvider.fromEnvironment();
+    const apiKey = process.env.AURAONE_API_KEY;
+    const accessToken = process.env.AURAONE_TOKEN;
+    const refreshToken = process.env.AURAONE_REFRESH_TOKEN;
 
-    if (!authProvider.isAuthenticated()) {
+    if (!apiKey && !accessToken) {
       throw new AuthenticationError(
         "No authentication credentials found in environment variables. " +
-        "Set AURAONE_API_KEY or AURAONE_TOKEN environment variable.",
+          "Set AURAONE_API_KEY or AURAONE_TOKEN environment variable.",
       );
     }
 
-    const client = new AuraOneClient(options);
-    client.authProvider = authProvider;
-    client.updateAuthHeaders();
-    return client;
+    return new AuraOneClient({
+      ...options,
+      apiKey,
+      accessToken,
+      refreshToken,
+    });
   }
 
   /**
@@ -180,17 +218,6 @@ export class AuraOneClient {
   clearAuth(): void {
     this.authProvider.clearAuth();
     this.updateAuthHeaders();
-  }
-
-  async getFederationNodes(
-    orgId: string,
-  ): Promise<{ nodes: unknown[]; [key: string]: unknown }> {
-    if (!orgId) {
-      throw new Error("orgId is required to list federation nodes");
-    }
-    return this.httpClient.get(
-      `/v1/organizations/${encodeURIComponent(orgId)}/federation/nodes`,
-    );
   }
 
   /**
@@ -230,10 +257,16 @@ export class AuraOneClient {
         success: false,
         authenticated: this.isAuthenticated(),
         method: this.getAuthMethod(),
-        message:
-          error instanceof Error ? error.message : "Connection failed",
+        message: error instanceof Error ? error.message : "Connection failed",
       };
     }
+  }
+
+  /**
+   * Public base URL the client is configured to call.
+   */
+  getBaseUrl(): string {
+    return this.fetchClient.getBaseUrl();
   }
 
   /**
@@ -261,6 +294,25 @@ export class AuraOneClient {
   }
 
   private validateConfig(config: ClientConfig): void {
+    if (config.apiKey && !AuthProvider.isValidApiKey(config.apiKey)) {
+      throw new AuthenticationError("Invalid API key format");
+    }
+
+    if (
+      config.accessToken &&
+      !AuthProvider.isValidJwtToken(config.accessToken)
+    ) {
+      throw new AuthenticationError("Invalid access token format");
+    }
+
+    // A credential is required at construction (PR-19 T-P0-13, CC-28 R3):
+    // there is no unauthenticated client.
+    if (!config.apiKey && !config.accessToken) {
+      throw new AuthenticationError(
+        "AuraOneClient requires apiKey or accessToken (set AURAONE_API_KEY)",
+      );
+    }
+
     if (config.baseUrl && !this.isValidUrl(config.baseUrl)) {
       throw new Error("Invalid baseUrl provided");
     }
@@ -314,7 +366,15 @@ export * from "../services/AnalyticsService";
 export * from "../services/TrainingService";
 export * from "../services/BillingService";
 export * from "../services/CollaborationService";
-export * from "../services/RoboticsService";
+export * from "../services/IntegrationsService";
+export * from "../services/EnterpriseIntelligenceService";
+export * from "../services/AttentionService";
+export * from "../services/OptimizationService";
+export * from "../services/AutopilotService";
+export * from "../services/VisualizationService";
+export * from "../services/CapacityService";
+export * from "../services/FederationService";
+export * from "../services/GraphQLService";
 
 // Default export
 export default AuraOneClient;

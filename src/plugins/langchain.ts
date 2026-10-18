@@ -1,5 +1,5 @@
-import { BaseCallbackHandler } from "langchain/callbacks";
-import type { ChainValues } from "langchain/schema";
+import { BaseCallbackHandler } from "@langchain/core/callbacks/base";
+import type { ChainValues } from "@langchain/core/utils/types";
 
 export type AuraOneTrace = {
   runId: string;
@@ -62,4 +62,3 @@ export class AuraOneLangChainHandler extends BaseCallbackHandler {
     this.current = undefined;
   }
 }
-

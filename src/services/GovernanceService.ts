@@ -62,7 +62,7 @@ export class GovernanceService {
 
   async listEvidence(limit = 200): Promise<ComplianceEvidenceRecord[]> {
     const response = await this.http.get<{ items?: RawEvidenceRecord[] }>(
-      `/v1/compliance/evidence?limit=${limit}`,
+      `/api/v1/compliance/evidence?limit=${limit}`,
       this.requestConfig,
     );
     return (response?.items ?? []).map((record) => ({
@@ -70,20 +70,25 @@ export class GovernanceService {
       orgId: record.orgId,
       standard: record.standard,
       status: record.status,
-      lastAudit: record.lastAudit ?? record.last_audit ?? new Date().toISOString(),
+      lastAudit:
+        record.lastAudit ?? record.last_audit ?? new Date().toISOString(),
     }));
   }
 
-  async appendEvidence(payload: AppendEvidenceRequest): Promise<AppendEvidenceResponse> {
+  async appendEvidence(
+    payload: AppendEvidenceRequest,
+  ): Promise<AppendEvidenceResponse> {
     const response = await this.http.post<AppendEvidenceResponse>(
-      "/v1/compliance/evidence",
+      "/api/v1/compliance/evidence",
       payload,
       this.requestConfig,
     );
     return response;
   }
 
-  async listFrameworks(params: ListFrameworksParams = {}): Promise<ComplianceFrameworkList> {
+  async listFrameworks(
+    params: ListFrameworksParams = {},
+  ): Promise<ComplianceFrameworkList> {
     const search = new URLSearchParams();
     if (params.framework) search.set("framework", params.framework);
     if (params.status) search.set("status", params.status);
@@ -91,7 +96,7 @@ export class GovernanceService {
     if (params.page) search.set("page", params.page.toString());
     if (params.limit) search.set("limit", params.limit.toString());
 
-    const path = `/v1/compliance/frameworks${search.size ? `?${search.toString()}` : ""}`;
+    const path = `/api/v1/compliance/frameworks${search.size ? `?${search.toString()}` : ""}`;
     const response = await this.http.get<ComplianceFrameworkApiResponse>(
       path,
       this.requestConfig,
@@ -112,9 +117,11 @@ export class GovernanceService {
     };
   }
 
-  async createFramework(payload: CreateComplianceFrameworkRequest): Promise<ComplianceFrameworkSummary> {
+  async createFramework(
+    payload: CreateComplianceFrameworkRequest,
+  ): Promise<ComplianceFrameworkSummary> {
     const response = await this.http.post<ComplianceFrameworkApiResponse>(
-      "/v1/compliance/frameworks",
+      "/api/v1/compliance/frameworks",
       payload,
       this.requestConfig,
     );
@@ -124,13 +131,17 @@ export class GovernanceService {
       : (response?.data as RawComplianceFramework | undefined);
 
     if (!framework) {
-      throw new Error("Compliance framework creation returned an empty response");
+      throw new Error(
+        "Compliance framework creation returned an empty response",
+      );
     }
 
     return this.toFramework(framework);
   }
 
-  private toFramework(framework: RawComplianceFramework): ComplianceFrameworkSummary {
+  private toFramework(
+    framework: RawComplianceFramework,
+  ): ComplianceFrameworkSummary {
     return {
       id: framework.id,
       organizationId: framework.organizationId,

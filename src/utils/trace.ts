@@ -1,11 +1,14 @@
 function hex(bytes: Uint8Array): string {
   return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function randomBytes(length: number): Uint8Array {
-  if (typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.getRandomValues === 'function') {
+  if (
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.getRandomValues === "function"
+  ) {
     const out = new Uint8Array(length);
     globalThis.crypto.getRandomValues(out);
     return out;
@@ -13,7 +16,7 @@ function randomBytes(length: number): Uint8Array {
 
   // Node fallback
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const nodeCrypto = require('crypto') as typeof import('crypto');
+  const nodeCrypto = require("crypto") as typeof import("crypto");
   return nodeCrypto.randomBytes(length);
 }
 
@@ -26,9 +29,10 @@ export function createTraceparent(): string {
 
 export function traceHeaders(): Record<string, string> {
   const enabled =
-    process.env.OTEL_DISABLED === 'true'
+    process.env.OTEL_DISABLED === "true"
       ? false
-      : process.env.OTEL_ENABLED === 'true' || (process.env.NODE_ENV ?? 'development') === 'production';
+      : process.env.OTEL_ENABLED === "true" ||
+        (process.env.NODE_ENV ?? "development") === "production";
 
   if (!enabled) return {};
 

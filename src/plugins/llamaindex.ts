@@ -1,5 +1,10 @@
 export type LlamaIndexEvent =
-  | { type: "start"; id: string; ts: number; metadata?: Record<string, unknown> }
+  | {
+      type: "start";
+      id: string;
+      ts: number;
+      metadata?: Record<string, unknown>;
+    }
   | { type: "end"; id: string; ts: number; output?: unknown }
   | { type: "error"; id: string; ts: number; error: string };
 
@@ -37,4 +42,3 @@ export class AuraOneLlamaIndexHook {
     this.onEvent?.(event);
   }
 }
-

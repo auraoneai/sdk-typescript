@@ -7,7 +7,11 @@
 export interface SDKLogger {
   info(message: string, context?: Record<string, unknown>): void;
   warn(message: string, context?: Record<string, unknown>): void;
-  error(message: string, error?: unknown, context?: Record<string, unknown>): void;
+  error(
+    message: string,
+    error?: unknown,
+    context?: Record<string, unknown>,
+  ): void;
   debug(message: string, context?: Record<string, unknown>): void;
 }
 
@@ -42,7 +46,11 @@ class SDKLoggerImpl implements SDKLogger {
     }
   }
 
-  error(message: string, error?: unknown, context?: Record<string, unknown>): void {
+  error(
+    message: string,
+    error?: unknown,
+    context?: Record<string, unknown>,
+  ): void {
     // Errors are always emitted regardless of debug flag
     if (error && context) {
       console.error(`${PREFIX} ${message}`, error, context);

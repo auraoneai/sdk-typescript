@@ -3,6 +3,7 @@ import type { HttpClient, RequestConfig } from "../types/api";
 
 export enum EvaluationStatus {
   QUEUED = "queued",
+  PENDING = "pending",
   RUNNING = "running",
   COMPLETED = "completed",
   FAILED = "failed",
@@ -95,7 +96,7 @@ export class EvaluationsService {
     };
 
     const raw = await this.http.post<Record<string, unknown>>(
-      "/v1/evaluations",
+      "/api/v1/evaluations",
       request,
       { ...this.requestConfig, headers },
     );
@@ -105,12 +106,16 @@ export class EvaluationsService {
       return evaluation;
     }
 
-    return this.waitForCompletion(evaluation.id, timeoutSeconds, pollIntervalMs);
+    return this.waitForCompletion(
+      evaluation.id,
+      timeoutSeconds,
+      pollIntervalMs,
+    );
   }
 
   async get(evaluationId: string): Promise<EvaluationResult> {
     const raw = await this.http.get<Record<string, unknown>>(
-      `/v1/evaluations/${evaluationId}`,
+      `/api/v1/evaluations/${evaluationId}`,
       this.requestConfig,
     );
     return this.toEvaluationResult(raw);
@@ -136,30 +141,37 @@ export class EvaluationsService {
       await this.delay(pollIntervalMs);
     }
 
-    throw new Error(`Evaluation ${evaluationId} timed out after ${timeoutSeconds}s`);
+    throw new Error(
+      `Evaluation ${evaluationId} timed out after ${timeoutSeconds}s`,
+    );
   }
 
   async cancel(evaluationId: string): Promise<EvaluationResult> {
     const raw = await this.http.post<Record<string, unknown>>(
-      `/v1/evaluations/${evaluationId}:cancel`,
+      `/api/v1/evaluations/${evaluationId}/cancel`,
       undefined,
       this.requestConfig,
     );
 
-    if (raw && typeof raw === "object" && typeof (raw as Record<string, unknown>).id !== "undefined") {
-      return this.toEvaluationResult(raw as Record<string, unknown>);
+    if (raw && typeof raw === "object") {
+      const record = raw as Record<string, unknown>;
+      if (typeof record.id !== "undefined" || typeof record.evaluation_id !== "undefined") {
+        return this.toEvaluationResult(record);
+      }
     }
 
     return this.get(evaluationId);
   }
 
-  async listTemplates(options: { domain?: string; page?: number; per_page?: number } = {}): Promise<Template[]> {
+  async listTemplates(
+    options: { domain?: string; page?: number; per_page?: number } = {},
+  ): Promise<Template[]> {
     const params = new URLSearchParams();
     if (options.domain) params.set("domain", options.domain);
     if (options.page) params.set("page", options.page.toString());
     if (options.per_page) params.set("per_page", options.per_page.toString());
 
-    const endpoint = `/v1/templates?${params.toString()}`;
+    const endpoint = `/api/v1/templates?${params.toString()}`;
     const raw = await this.http.get<unknown>(endpoint, this.requestConfig);
     const source = Array.isArray(raw)
       ? raw
@@ -175,10 +187,9 @@ export class EvaluationsService {
   }
 
   async getTemplate(templateId: string): Promise<Template> {
-    const raw = await this.http.get<Record<string, unknown> | { template: Record<string, unknown> }>(
-      `/v1/templates/${templateId}`,
-      this.requestConfig,
-    );
+    const raw = await this.http.get<
+      Record<string, unknown> | { template: Record<string, unknown> }
+    >(`/api/v1/templates/${templateId}`, this.requestConfig);
 
     const templateRecord =
       this.isRecord(raw) && this.isRecord(raw.template)
@@ -189,11 +200,9 @@ export class EvaluationsService {
   }
 
   async createTemplate(template: Omit<Template, "id">): Promise<Template> {
-    const raw = await this.http.post<Record<string, unknown> | { template: Record<string, unknown> }>(
-      "/v1/templates",
-      template,
-      this.requestConfig,
-    );
+    const raw = await this.http.post<
+      Record<string, unknown> | { template: Record<string, unknown> }
+    >("/api/v1/templates", template, this.requestConfig);
 
     const templateRecord =
       this.isRecord(raw) && this.isRecord(raw.template)
@@ -203,40 +212,8 @@ export class EvaluationsService {
     return this.toTemplate(templateRecord);
   }
 
-  async compileReward(
-    yamlSpec: string,
-  ): Promise<{
-    valid: boolean;
-    warnings: string[];
-    contracts: { bounded: boolean; monotonic: boolean; pure: boolean };
-  }> {
-    return this.http.post(
-      "/v1/rewards/compile",
-      { yaml_spec: yamlSpec },
-      this.requestConfig,
-    );
-  }
-
-  async listRewardSpecs(options: { page?: number; per_page?: number } = {}): Promise<RewardSpec[]> {
-    const params = new URLSearchParams();
-    if (options.page) params.set("page", options.page.toString());
-    if (options.per_page) params.set("per_page", options.per_page.toString());
-
-    const endpoint = `/v1/rewards/specs?${params.toString()}`;
-    const raw = await this.http.get<unknown>(endpoint, this.requestConfig);
-    const source = Array.isArray(raw)
-      ? raw
-      : this.isRecord(raw) && Array.isArray(raw.specs)
-        ? raw.specs
-        : [];
-
-    return (source as unknown[])
-      .filter((value): value is Record<string, unknown> => this.isRecord(value))
-      .map((spec) => this.toRewardSpec(spec));
-  }
-
   private toEvaluationResult(raw: Record<string, unknown>): EvaluationResult {
-    const id = this.getString(raw.id);
+    const id = this.getString(raw.id) ?? this.getString(raw.evaluation_id);
     if (!id) {
       throw new Error("Evaluation response missing id");
     }
@@ -272,7 +249,7 @@ export class EvaluationsService {
       throw new Error("Template response missing required fields");
     }
 
-    const version = this.getString(raw.version) ?? "1.0.0";
+    const version = this.getString(raw.version) ?? "0.0.0";
     const difficultyValue = this.getString(raw.difficulty);
     const difficulty = (
       difficultyValue === "easy" ||
@@ -297,33 +274,25 @@ export class EvaluationsService {
     };
   }
 
-  private toRewardSpec(raw: Record<string, unknown>): RewardSpec {
-    const id = this.getString(raw.id);
-    const name = this.getString(raw.name);
-
-    if (!id || !name) {
-      throw new Error("Reward spec response missing required fields");
-    }
-
-    const version = typeof raw.version === "number" ? raw.version : 1;
-    const yamlSpec = this.getString(raw.yaml_spec) ?? "";
-    const createdAt = this.getString(raw.created_at) ?? new Date().toISOString();
-
-    return {
-      id,
-      name,
-      version,
-      yaml_spec: yamlSpec,
-      created_at: createdAt,
-    };
-  }
-
   private extractMetrics(value: unknown): Record<string, number> | undefined {
+    if (Array.isArray(value)) {
+      const entries = value
+        .filter(
+          (item): item is { name: string; value: number } =>
+            this.isRecord(item) &&
+            typeof item.name === "string" &&
+            typeof item.value === "number",
+        )
+        .map((item) => [item.name, item.value] as const);
+      return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+    }
     if (!this.isRecord(value)) {
       return undefined;
     }
 
-    const entries = Object.entries(value).filter(([, v]) => typeof v === "number");
+    const entries = Object.entries(value).filter(
+      ([, v]) => typeof v === "number",
+    );
     if (entries.length === 0) {
       return undefined;
     }

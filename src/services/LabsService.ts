@@ -25,7 +25,12 @@ interface RawLabsEvaluation {
   createdAt?: string;
   updated_at?: string;
   updatedAt?: string;
-  metrics?: Array<{ name?: string; metricName?: string; value?: number; timestamp?: string }>;
+  metrics?: Array<{
+    name?: string;
+    metricName?: string;
+    value?: number;
+    timestamp?: string;
+  }>;
   results?: Array<{
     id: string;
     created_at?: string;
@@ -76,10 +81,13 @@ export class LabsService {
     private readonly requestConfig: RequestConfig = {},
   ) {}
 
-  async createEvaluation(request: CreateLabsEvaluationRequest): Promise<LabsEvaluation> {
-    const { waitForCompletion, timeoutSeconds, pollIntervalMs, ...payload } = request;
+  async createEvaluation(
+    request: CreateLabsEvaluationRequest,
+  ): Promise<LabsEvaluation> {
+    const { waitForCompletion, timeoutSeconds, pollIntervalMs, ...payload } =
+      request;
     const response = await this.http.post<RawLabsEvaluation>(
-      "/v1/labs/evals",
+      "/api/v1/labs/evals",
       payload,
       this.requestConfig,
     );
@@ -98,7 +106,7 @@ export class LabsService {
 
   async getEvaluation(evaluationId: string): Promise<LabsEvaluation> {
     const response = await this.http.get<RawLabsEvaluation>(
-      `/v1/labs/evals/${encodeURIComponent(evaluationId)}`,
+      `/api/v1/labs/evals/${encodeURIComponent(evaluationId)}`,
       this.requestConfig,
     );
     return this.toEvaluation(response);
@@ -126,20 +134,22 @@ export class LabsService {
   }
 
   async listBundles(): Promise<LabBundleList> {
-    const response = await this.http.get<{ data?: RawLabBundle[]; templates?: RawLabBundleTemplate[] }>(
-      "/v1/labs/bundles",
-      this.requestConfig,
-    );
+    const response = await this.http.get<{
+      data?: RawLabBundle[];
+      templates?: RawLabBundleTemplate[];
+    }>("/api/v1/labs/bundles", this.requestConfig);
 
     return {
       bundles: (response?.data ?? []).map((bundle) => this.toBundle(bundle)),
-      templates: (response?.templates ?? []).map((template) => this.toTemplate(template)),
+      templates: (response?.templates ?? []).map((template) =>
+        this.toTemplate(template),
+      ),
     };
   }
 
   async createBundle(payload: CreateLabBundleRequest): Promise<LabBundle> {
     const response = await this.http.post<{ data: RawLabBundle }>(
-      "/v1/labs/bundles",
+      "/api/v1/labs/bundles",
       payload,
       this.requestConfig,
     );
@@ -148,15 +158,18 @@ export class LabsService {
 
   async getBundle(bundleId: string): Promise<LabBundle> {
     const response = await this.http.get<{ data: RawLabBundle }>(
-      `/v1/labs/bundles/${encodeURIComponent(bundleId)}`,
+      `/api/v1/labs/bundles/${encodeURIComponent(bundleId)}`,
       this.requestConfig,
     );
     return this.toBundle(response.data);
   }
 
-  async updateBundle(bundleId: string, payload: UpdateLabBundleRequest): Promise<LabBundle> {
+  async updateBundle(
+    bundleId: string,
+    payload: UpdateLabBundleRequest,
+  ): Promise<LabBundle> {
     const response = await this.http.patch<{ data: RawLabBundle }>(
-      `/v1/labs/bundles/${encodeURIComponent(bundleId)}`,
+      `/api/v1/labs/bundles/${encodeURIComponent(bundleId)}`,
       payload,
       this.requestConfig,
     );
@@ -165,7 +178,7 @@ export class LabsService {
 
   async deleteBundle(bundleId: string): Promise<void> {
     await this.http.delete(
-      `/v1/labs/bundles/${encodeURIComponent(bundleId)}`,
+      `/api/v1/labs/bundles/${encodeURIComponent(bundleId)}`,
       this.requestConfig,
     );
   }
@@ -173,7 +186,10 @@ export class LabsService {
   private toEvaluation(payload: RawLabsEvaluation): LabsEvaluation {
     const metrics = payload.metrics?.map((metric) => ({
       name: metric.name ?? metric.metricName ?? "metric",
-      value: typeof metric.value === "number" ? metric.value : Number(metric.value ?? 0),
+      value:
+        typeof metric.value === "number"
+          ? metric.value
+          : Number(metric.value ?? 0),
       timestamp: metric.timestamp,
     }));
 
@@ -191,7 +207,8 @@ export class LabsService {
       suiteId: payload.suiteId ?? payload.suite_id ?? null,
       model: payload.model ?? null,
       template: payload.template ?? null,
-      createdAt: payload.createdAt ?? payload.created_at ?? new Date().toISOString(),
+      createdAt:
+        payload.createdAt ?? payload.created_at ?? new Date().toISOString(),
       updatedAt: payload.updatedAt ?? payload.updated_at,
       queue: payload.queue
         ? {
