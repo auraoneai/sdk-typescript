@@ -1,6 +1,48 @@
 # @auraone/sdk
 
-Official TypeScript/JavaScript SDK for the AuraOne public API.
+TypeScript SDK for AuraOne AI evaluation workflows (Node.js and Next.js): a typed client for the hosted AuraOne API.
+
+[![npm](https://img.shields.io/npm/v/@auraone/sdk)](https://www.npmjs.com/package/@auraone/sdk)
+[![CI](https://github.com/auraoneai/sdk-typescript/actions/workflows/ci.yml/badge.svg)](https://github.com/auraoneai/sdk-typescript/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/auraoneai/sdk-typescript/blob/main/LICENSE)
+
+## Quick start
+```bash
+npm install @auraone/sdk
+```
+
+```ts
+import { AuraOneClient } from "@auraone/sdk";
+
+// Server-side only: read the platform-issued ak_ key from the environment.
+const client = new AuraOneClient({ apiKey: process.env.AURAONE_API_KEY });
+const templates = await client.evaluations.listTemplates();
+```
+
+## What it does
+
+- Calls the hosted AuraOne API at `https://api.auraone.ai` with a
+  platform-issued `ak_` API key.
+- Lists evaluation templates and creates, polls, and cancels evaluations
+  (`client.evaluations`), sending an idempotency key on every create.
+- Ships ESM and CommonJS builds with type declarations, plus `node` and
+  `browser` entry points (`@auraone/sdk/node`, `@auraone/sdk/browser`).
+- Covers the Enterprise Intelligence routes
+  (`client.enterpriseIntelligence`).
+
+## What it doesn't do
+
+- It does not run evaluations locally; the work runs on the AuraOne platform.
+- It is not meant to hold an API key in browser code. Keep the key in
+  Node.js or Next.js server code.
+- Launch-excluded surfaces (compute, GraphQL, robotics, synthetic research,
+  rewards) are not part of this SDK.
+
+## Build on AuraOne
+
+- [Python SDK](https://auraone.ai/open/sdk-python)
+- [TypeScript SDK](https://auraone.ai/open/sdk-typescript)
+- [Self-hosted GitHub App](https://auraone.ai/open/github-app)
 
 ## Installation
 
@@ -28,16 +70,19 @@ const client = new AuraOneClient({
 });
 ```
 
-## Quickstart
+## Evaluations
 
 ```ts
 // List templates
 const templates = await client.evaluations.listTemplates();
 
-// Create an evaluation — config.inputs is required
+// Create an evaluation — config.inputs is required.
+// create() waits for completion by default; pass wait: false to return early.
 const evaluation = await client.evaluations.create({
   template_id: "tpl_your_template",
+  agent_bundle_url: "https://example.com/agent.tar.gz",
   config: { inputs: [{ prompt: "example", expected: "answer" }] },
+  wait: false,
 });
 
 // Poll + cancel
@@ -179,3 +224,7 @@ not on the message text. See `CHANGELOG.md`.
   CSRF-protected.
 - Launch-excluded surfaces (compute, GraphQL, robotics, synthetic research,
   rewards) are not part of this SDK.
+
+---
+
+Move from a prototype to a production AuraOne integration. [Talk to AuraOne](https://auraone.ai/contact?from=open:typescript-sdk)
